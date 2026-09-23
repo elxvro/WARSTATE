@@ -43,7 +43,7 @@ jobs:
         id: version
         shell: bash
         run: |
-          VERSION=$(grep -oP 'versionName\\s*=\\s*"\\K[^"]+' app/build.gradle.kts)
+          VERSION=$(sed -n 's/.*versionName = "\([^"]*\)".*/\1/p' app/build.gradle.kts | head -n 1)
           echo "name=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Build debug APK
