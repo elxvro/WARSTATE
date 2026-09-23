@@ -46,14 +46,6 @@ jobs:
           VERSION=$(sed -n 's/.*versionName = "\([^"]*\)".*/\1/p' app/build.gradle.kts | head -n 1)
           echo "name=$VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: Inject cinematic map asset
-        run: |
-          rm -f app/src/main/res/drawable-nodpi/warstate_map_bg.jpg
-          curl -L --fail --retry 3 \
-            "https://cdn.openart.ai/watermarked_images/wunq8Z56qit1yUZsT4Of/thumbnail_3d6b0753_1790172026561.webp" \
-            -o app/src/main/res/drawable-nodpi/warstate_map_bg.webp
-          test -s app/src/main/res/drawable-nodpi/warstate_map_bg.webp
-
       - name: Build debug APK
         run: gradle :app:assembleDebug --stacktrace
 
