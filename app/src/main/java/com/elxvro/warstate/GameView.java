@@ -27,6 +27,7 @@ public class GameView extends View {
     private final Paint stroke = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Random rng = new Random();
     private final SharedPreferences prefs;
+    private final Bitmap mapBackground;
 
     private float W, H;
     private float topH, mapTop, mapBottom, previewTop, unitsTop, actionTop, navTop;
@@ -90,6 +91,7 @@ public class GameView extends View {
         super(context);
         setLayerType(View.LAYER_TYPE_SOFTWARE, null);
         prefs = context.getSharedPreferences("warstate_save", Context.MODE_PRIVATE);
+        mapBackground = BitmapFactory.decodeResource(getResources(), R.drawable.warstate_map_bg);
 
         stroke.setStyle(Paint.Style.STROKE);
         stroke.setStrokeCap(Paint.Cap.ROUND);
@@ -327,11 +329,18 @@ public class GameView extends View {
     }
 
     private void drawMap(Canvas c) {
-        // Deniz
-        p.setShader(new LinearGradient(0,mapTop,0,mapBottom,
-                Color.rgb(9,58,83),Color.rgb(6,35,50),Shader.TileMode.CLAMP));
-        c.drawRect(0,mapTop,W,mapBottom,p);
-        p.setShader(null);
+        // Sinematik arazi arka planı: APK içine gömülü, internet gerekmez.
+        if (mapBackground != null) {
+            p.setAlpha(255);
+            c.drawBitmap(mapBackground, null, new RectF(0, mapTop, W, mapBottom), p);
+            p.setColor(Color.argb(72, 2, 24, 38));
+            c.drawRect(0, mapTop, W, mapBottom, p);
+        } else {
+            p.setShader(new LinearGradient(0,mapTop,0,mapBottom,
+                    Color.rgb(9,58,83),Color.rgb(6,35,50),Shader.TileMode.CLAMP));
+            c.drawRect(0,mapTop,W,mapBottom,p);
+            p.setShader(null);
+        }
 
         // Görev kartı
         p.setColor(Color.argb(225,5,25,39));
@@ -350,8 +359,8 @@ public class GameView extends View {
         // Arazi adası
         Path land=turkeyShape();
         p.setShader(new LinearGradient(0,mapTop,W,mapBottom,
-                Color.rgb(55,92,62),Color.rgb(67,70,48),Shader.TileMode.CLAMP));
-        p.setShadowLayer(dp(16),0,dp(5),Color.argb(170,0,0,0));
+                Color.argb(118,55,92,62),Color.argb(108,67,70,48),Shader.TileMode.CLAMP));
+        p.setShadowLayer(dp(16),0,dp(5),Color.argb(145,0,0,0));
         c.drawPath(land,p);
         p.clearShadowLayer();
         p.setShader(null);
