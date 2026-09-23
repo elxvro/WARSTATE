@@ -27,7 +27,6 @@ public class GameView extends View {
     private final Paint stroke = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Random rng = new Random();
     private final SharedPreferences prefs;
-    private final Bitmap mapBackground;
 
     private float W, H;
     private float topH, mapTop, mapBottom, previewTop, unitsTop, actionTop, navTop;
@@ -91,7 +90,6 @@ public class GameView extends View {
         super(context);
         setLayerType(View.LAYER_TYPE_SOFTWARE, null);
         prefs = context.getSharedPreferences("warstate_save", Context.MODE_PRIVATE);
-        mapBackground = BitmapFactory.decodeResource(getResources(), R.drawable.warstate_map_bg);
 
         stroke.setStyle(Paint.Style.STROKE);
         stroke.setStrokeCap(Paint.Cap.ROUND);
@@ -329,16 +327,19 @@ public class GameView extends View {
     }
 
     private void drawMap(Canvas c) {
-        // Sinematik arazi arka planı: APK içine gömülü, internet gerekmez.
-        if (mapBackground != null) {
-            drawBitmapCenterCrop(c, mapBackground, new RectF(0, mapTop, W, mapBottom));
-            p.setColor(Color.argb(38, 2, 19, 31));
-            c.drawRect(0, mapTop, W, mapBottom, p);
-        } else {
-            p.setShader(new LinearGradient(0,mapTop,0,mapBottom,
-                    Color.rgb(9,58,83),Color.rgb(6,35,50),Shader.TileMode.CLAMP));
-            c.drawRect(0,mapTop,W,mapBottom,p);
-            p.setShader(null);
+        // Temiz sinematik strateji zemini: tamamen uygulama içinde çizilir.
+        p.setShader(new LinearGradient(0,mapTop,0,mapBottom,
+                Color.rgb(7,49,70),Color.rgb(5,30,42),Shader.TileMode.CLAMP));
+        c.drawRect(0,mapTop,W,mapBottom,p);
+        p.setShader(null);
+
+        // Deniz ışığı ve sis katmanları.
+        p.setColor(Color.argb(34,66,174,214));
+        c.drawOval(new RectF(-W*.10f,mapTop-H*.020f,W*1.05f,mapTop+H*.110f),p);
+        p.setColor(Color.argb(20,220,235,226));
+        for(int i=0;i<5;i++){
+            float yy=mapTop+H*(.095f+i*.070f);
+            c.drawOval(new RectF(W*(.04f+(i%2)*.06f),yy,W*(.92f-(i%3)*.04f),yy+H*.030f),p);
         }
 
         // Görev kartı
@@ -357,18 +358,22 @@ public class GameView extends View {
 
         // Arazi adası
         Path land=turkeyShape();
-        if (mapBackground == null) {
-            p.setShader(new LinearGradient(0,mapTop,W,mapBottom,
-                    Color.argb(118,55,92,62),Color.argb(108,67,70,48),Shader.TileMode.CLAMP));
-            p.setShadowLayer(dp(16),0,dp(5),Color.argb(145,0,0,0));
-            c.drawPath(land,p);
-            p.clearShadowLayer();
-            p.setShader(null);
-            drawTerrain(c);
-        }
-        stroke.setStrokeWidth(dp(2));
-        stroke.setColor(Color.argb(185,94,154,112));
+        p.setShader(new LinearGradient(W*.15f,mapTop,W*.90f,mapBottom,
+                Color.rgb(58,91,58),Color.rgb(83,72,46),Shader.TileMode.CLAMP));
+        p.setShadowLayer(dp(18),0,dp(7),Color.argb(180,0,0,0));
+        c.drawPath(land,p);
+        p.clearShadowLayer();
+        p.setShader(null);
+
+        // Kıyı parlaması
+        stroke.setStrokeWidth(dp(5));
+        stroke.setColor(Color.argb(55,124,221,205));
         c.drawPath(land,stroke);
+        stroke.setStrokeWidth(dp(1.8f));
+        stroke.setColor(Color.rgb(99,146,101));
+        c.drawPath(land,stroke);
+
+        drawTerrain(c);
         drawRoads(c);
 
         // deniz etiketi
@@ -439,10 +444,25 @@ public class GameView extends View {
     private void drawTerrain(Canvas c){
         float mh=mapBottom-mapTop;
 
-        p.setColor(Color.argb(75,31,110,58));
+        p.setColor(Color.argb(90,27,103,55));
         c.drawOval(new RectF(W*.18f,mapTop+mh*.26f,W*.43f,mapTop+mh*.49f),p);
         c.drawOval(new RectF(W*.60f,mapTop+mh*.28f,W*.88f,mapTop+mh*.53f),p);
         c.drawOval(new RectF(W*.40f,mapTop+mh*.61f,W*.68f,mapTop+mh*.83f),p);
+
+        // küçük orman kümeleri
+        p.setColor(Color.argb(105,18,77,43));
+        for(int i=0;i<34;i++){
+            float tx=W*(.20f+(i%9)*.075f);
+            float ty=mapTop+mh*(.30f+((i*7)%17)*.030f);
+            if(tx<W*.88f && ty<mapTop+mh*.80f){
+                Path tree=new Path();
+                tree.moveTo(tx,ty-H*.010f);
+                tree.lineTo(tx-W*.008f,ty+H*.008f);
+                tree.lineTo(tx+W*.008f,ty+H*.008f);
+                tree.close();
+                c.drawPath(tree,p);
+            }
+        }
 
         // tarla dokusu
         stroke.setStrokeWidth(dp(1));
@@ -612,20 +632,35 @@ public class GameView extends View {
         stroke.setColor(col);
         c.drawCircle(cx,cy,rad,stroke);
 
-        // üs silueti
-        p.setColor(Color.rgb(9,23,32));
-        c.drawRect(cx-W*.020f,cy-H*.016f,cx-W*.006f,cy+H*.008f,p);
-        c.drawRect(cx-W*.002f,cy-H*.025f,cx+W*.012f,cy+H*.008f,p);
-        c.drawRect(cx+W*.016f,cy-H*.013f,cx+W*.029f,cy+H*.008f,p);
-        p.setColor(col);
-        c.drawRect(cx-W*.025f,cy+H*.008f,cx+W*.034f,cy+H*.011f,p);
-
-        // bayrak
+        // Hacimli şehir/üs görünümü
+        float baseW=W*.055f;
+        float baseH=H*.026f;
+        p.setColor(Color.argb(210,7,18,26));
+        c.drawOval(new RectF(cx-baseW,cy-baseH*.20f,cx+baseW,cy+baseH*.72f),p);
         stroke.setStrokeWidth(dp(1.5f));
-        stroke.setColor(Color.rgb(205,215,221));
-        c.drawLine(cx-W*.006f,cy-H*.025f,cx-W*.006f,cy-H*.052f,stroke);
+        stroke.setColor(Color.argb(180,Color.red(col),Color.green(col),Color.blue(col)));
+        c.drawOval(new RectF(cx-baseW,cy-baseH*.20f,cx+baseW,cy+baseH*.72f),stroke);
+
+        // merkez kule ve yan binalar
+        p.setShader(new LinearGradient(cx,cy-H*.038f,cx,cy+H*.010f,
+                Color.rgb(48,58,63),Color.rgb(11,23,30),Shader.TileMode.CLAMP));
+        c.drawRect(cx-W*.012f,cy-H*.034f,cx+W*.011f,cy+H*.009f,p);
+        c.drawRect(cx-W*.034f,cy-H*.018f,cx-W*.015f,cy+H*.009f,p);
+        c.drawRect(cx+W*.016f,cy-H*.022f,cx+W*.035f,cy+H*.009f,p);
+        p.setShader(null);
+
+        // çatı ışıkları
+        p.setColor(Color.argb(220,Color.red(col),Color.green(col),Color.blue(col)));
+        c.drawRect(cx-W*.012f,cy-H*.035f,cx+W*.011f,cy-H*.031f,p);
+        c.drawRect(cx-W*.034f,cy-H*.019f,cx-W*.015f,cy-H*.016f,p);
+        c.drawRect(cx+W*.016f,cy-H*.023f,cx+W*.035f,cy-H*.020f,p);
+
+        // merkez anten ve bayrak
+        stroke.setStrokeWidth(dp(1.5f));
+        stroke.setColor(Color.rgb(210,219,224));
+        c.drawLine(cx,cy-H*.034f,cx,cy-H*.060f,stroke);
         p.setColor(col);
-        c.drawRect(cx-W*.006f,cy-H*.051f,cx+W*.030f,cy-H*.036f,p);
+        c.drawRect(cx,cy-H*.058f,cx+W*.030f,cy-H*.043f,p);
 
         // etiket
         float pw=W*.135f, ph=H*.033f;
@@ -1523,26 +1558,6 @@ public class GameView extends View {
         if(n>=1000000) return String.format(Locale.US,"%.1fM",n/1000000f);
         if(n>=1000) return String.format(Locale.US,"%.1fK",n/1000f);
         return String.valueOf(n);
-    }
-
-    private void drawBitmapCenterCrop(Canvas c, Bitmap bitmap, RectF dst) {
-        float srcW = bitmap.getWidth();
-        float srcH = bitmap.getHeight();
-        float dstRatio = dst.width() / dst.height();
-        float srcRatio = srcW / srcH;
-        Rect src = new Rect();
-        if (srcRatio > dstRatio) {
-            int cropW = Math.round(srcH * dstRatio);
-            int left = Math.max(0, (bitmap.getWidth() - cropW) / 2);
-            src.set(left, 0, Math.min(bitmap.getWidth(), left + cropW), bitmap.getHeight());
-        } else {
-            int cropH = Math.round(srcW / dstRatio);
-            int top = Math.max(0, (bitmap.getHeight() - cropH) / 2);
-            src.set(0, top, bitmap.getWidth(), Math.min(bitmap.getHeight(), top + cropH));
-        }
-        p.setAlpha(255);
-        c.drawBitmap(bitmap, src, dst, p);
-        p.setAlpha(255);
     }
 
     private void roundRect(Canvas c,float l,float t,float r,float b,float rad,Paint paint){
