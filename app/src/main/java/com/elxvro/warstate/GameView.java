@@ -331,9 +331,8 @@ public class GameView extends View {
     private void drawMap(Canvas c) {
         // Sinematik arazi arka planı: APK içine gömülü, internet gerekmez.
         if (mapBackground != null) {
-            p.setAlpha(255);
-            c.drawBitmap(mapBackground, null, new RectF(0, mapTop, W, mapBottom), p);
-            p.setColor(Color.argb(72, 2, 24, 38));
+            drawBitmapCenterCrop(c, mapBackground, new RectF(0, mapTop, W, mapBottom));
+            p.setColor(Color.argb(38, 2, 19, 31));
             c.drawRect(0, mapTop, W, mapBottom, p);
         } else {
             p.setShader(new LinearGradient(0,mapTop,0,mapBottom,
@@ -358,17 +357,18 @@ public class GameView extends View {
 
         // Arazi adası
         Path land=turkeyShape();
-        p.setShader(new LinearGradient(0,mapTop,W,mapBottom,
-                Color.argb(118,55,92,62),Color.argb(108,67,70,48),Shader.TileMode.CLAMP));
-        p.setShadowLayer(dp(16),0,dp(5),Color.argb(145,0,0,0));
-        c.drawPath(land,p);
-        p.clearShadowLayer();
-        p.setShader(null);
+        if (mapBackground == null) {
+            p.setShader(new LinearGradient(0,mapTop,W,mapBottom,
+                    Color.argb(118,55,92,62),Color.argb(108,67,70,48),Shader.TileMode.CLAMP));
+            p.setShadowLayer(dp(16),0,dp(5),Color.argb(145,0,0,0));
+            c.drawPath(land,p);
+            p.clearShadowLayer();
+            p.setShader(null);
+            drawTerrain(c);
+        }
         stroke.setStrokeWidth(dp(2));
-        stroke.setColor(Color.rgb(98,132,90));
+        stroke.setColor(Color.argb(185,94,154,112));
         c.drawPath(land,stroke);
-
-        drawTerrain(c);
         drawRoads(c);
 
         // deniz etiketi
@@ -598,7 +598,7 @@ public class GameView extends View {
         int col=r.owner==PLAYER?Color.rgb(44,168,255):Color.rgb(245,71,63);
         boolean sel=index==selectedSource || index==selectedTarget;
         float pulse=(float)((Math.sin(SystemClock.uptimeMillis()/300.0)+1)/2.0);
-        float rad=W*(sel?.049f+.005f*pulse:.043f);
+        float rad=W*(sel?.054f+.006f*pulse:.047f);
 
         r.hit.set(cx-W*.080f,cy-H*.055f,cx+W*.080f,cy+H*.055f);
 
@@ -1523,6 +1523,26 @@ public class GameView extends View {
         if(n>=1000000) return String.format(Locale.US,"%.1fM",n/1000000f);
         if(n>=1000) return String.format(Locale.US,"%.1fK",n/1000f);
         return String.valueOf(n);
+    }
+
+    private void drawBitmapCenterCrop(Canvas c, Bitmap bitmap, RectF dst) {
+        float srcW = bitmap.getWidth();
+        float srcH = bitmap.getHeight();
+        float dstRatio = dst.width() / dst.height();
+        float srcRatio = srcW / srcH;
+        Rect src = new Rect();
+        if (srcRatio > dstRatio) {
+            int cropW = Math.round(srcH * dstRatio);
+            int left = Math.max(0, (bitmap.getWidth() - cropW) / 2);
+            src.set(left, 0, Math.min(bitmap.getWidth(), left + cropW), bitmap.getHeight());
+        } else {
+            int cropH = Math.round(srcW / dstRatio);
+            int top = Math.max(0, (bitmap.getHeight() - cropH) / 2);
+            src.set(0, top, bitmap.getWidth(), Math.min(bitmap.getHeight(), top + cropH));
+        }
+        p.setAlpha(255);
+        c.drawBitmap(bitmap, src, dst, p);
+        p.setAlpha(255);
     }
 
     private void roundRect(Canvas c,float l,float t,float r,float b,float rad,Paint paint){
